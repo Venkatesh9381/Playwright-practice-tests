@@ -36,11 +36,17 @@ jobs:
       run: npx playwright install --with-deps
     - name: Run Playwright tests
       run: npx playwright test ${{ inputs.script || '' }}
-    - name: Upload report to GitHub Pages
+    - name: Prepare Pages content
+      if: always()
+      run: |
+        mkdir -p site
+        cp -r playwright-report/* site/ || true
+        cp dashboard.html site/ || true
+    - name: Upload to GitHub Pages
       if: always()
       uses: actions/upload-pages-artifact@v3
       with:
-        path: playwright-report
+        path: site
 
   deploy:
     needs: test
