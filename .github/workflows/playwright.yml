@@ -36,28 +36,10 @@ jobs:
       run: npx playwright install --with-deps
     - name: Run Playwright tests
       run: npx playwright test ${{ inputs.script || '' }}
-    - name: Prepare Pages content
+    - name: Upload Playwright report
       if: always()
-      run: |
-        mkdir -p site
-        cp -r playwright-report/* site/ || true
-        cp dashboard.html site/ || true
-    - name: Upload to GitHub Pages
-      if: always()
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        path: site
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
