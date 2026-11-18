@@ -4,6 +4,23 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'qa'
+        type: choice
+        options:
+          - qa
+          - staging
+          - prod
+      script:
+        description: 'Script name (example: day-1.spec.js)'
+        required: true
+        default: 'day-1.spec.js'
+        type: string
+
 jobs:
   test:
     timeout-minutes: 60
@@ -18,7 +35,7 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
-      run: npx playwright test
+      run: npx playwright test ${{ inputs.script || '' }}
     - name: Upload report to GitHub Pages
       if: always()
       uses: actions/upload-pages-artifact@v3
