@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Playwright Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #1e293b; }
+    .container { display: flex; height: 100vh; }
+    .sidebar { width: 320px; background: white; border-right: 1px solid #e2e8f0; padding: 20px; overflow-y: auto; }
+    .main { flex: 1; padding: 24px; overflow-y: auto; }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #475569; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+    button.run { width: 100%; background: #16a34a; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    button.run:hover { background: #15803d; }
+    .pipeline-item { padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid transparent; }
+    .pipeline-item:hover, .pipeline-item.active { background: #f1f5f9; border-color: #cbd5e1; }
+    .status { font-size: 12px; padding: 2px 8px; border-radius: 12px; }
+    .passed { background: #dcfce7; color: #166534; }
+    .failed { background: #fee2e2; color: #991b1b; }
+    .running { background: #fef9c3; color: #854d0e; }
+    .tabs { display: flex; gap: 16px; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; }
+    .tab { padding: 8px 0; cursor: pointer; font-weight: 500; color: #64748b; }
+    .tab.active { color: #0f172a; border-bottom: 2px solid #3b82f6; }
+    .report-frame { width: 100%; height: 600px; border: 1px solid #e2e8f0; border-radius: 8px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h1>Pipelines</h1>
+      <div class="form-group">
+        <label>Environment</label>
+        <select id="env">
+          <option value="qa">QA</option>
+          <option value="staging">Staging</option>
+          <option value="prod">Prod</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Script name</label>
+        <input type="text" id="script" value="day-1.spec.js" placeholder="day-1.spec.js">
+      </div>
+      <button class="run" onclick="triggerPipeline()">▶ Run Pipeline</button>
+      <div id="pipeline-list" style="margin-top: 24px;"></div>
+    </div>
+
+    <div class="main">
+      <h1 id="selected-title">Select a pipeline</h1>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('params')">Parameters Used</div>
+        <div class="tab" onclick="switchTab('observation')">Observation</div>
+      </div>
+      <div id="params-tab">
+        <p id="params-content">Select a pipeline to see parameters.</p>
+      </div>
+      <div id="observation-tab" class="hidden">
+        <p style="margin-bottom: 12px;">Playwright Report</p>
+        <iframe id="report-frame" class="report-frame" src="https://venkatesh9381.github.io/Playwright-practice-tests/"></iframe>
+        <p style="margin-top: 8px;"><a id="full-report" href="https://venkatesh9381.github.io/Playwright-practice-tests/" target="_blank">Open Full Report</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const REPO = "Venkatesh9381/Playwright-practice-tests";
+    let TOKEN = localStorage.getItem("gh_token") || "";
+
+    if (!TOKEN) {
+      TOKEN = prompt("Enter your GitHub Personal Access Token:");
+      if (TOKEN) localStorage.setItem("gh_token", TOKEN);
+    }
+
+    let pipelines = [];
+
+    async function loadPipelines() {
+      if (!TOKEN) return;
+      const res = await fetch(`https://api.github.com/repos/${REPO}/actions/runs?per_page=15`, {
+        headers: { Authorization: `Bearer ${TOKEN}` }
+      });
+      const data = await res.json();
+      pipelines = data.workflow_runs || [];
+      renderList();
+    }
+
+    function renderList() {
+      const list = document.getElementById("pipeline-list");
+      list.innerHTML = pipelines.map((run, i) => `
+        <div class="pipeline-item" onclick="selectPipeline(${i})">
+          <div><strong>#${pipelines.length - i}</strong> 
+            <span class="status ${run.conclusion || 'running'}">${run.conclusion || run.status}</span>
+          </div>
+          <div style="font-size:13px; color:#64748b; margin-top:4px;">
+            ${new Date(run.created_at).toLocaleString()}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function selectPipeline(index) {
+      document.querySelectorAll(".pipeline-item").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(".pipeline-item")[index].classList.add("active");
+      const run = pipelines[index];
+      document.getElementById("selected-title").textContent = `Pipeline #${pipelines.length - index}`;
+      document.getElementById("params-content").innerHTML = `
+        <p><strong>Status:</strong> ${run.conclusion || run.status}</p>
+        <p><strong>Started:</strong> ${new Date(run.created_at).toLocaleString()}</p>
+        <p><strong>Triggered by:</strong> ${run.actor?.login || "Unknown"}</p>
+        <p><strong>Event:</strong> ${run.event}</p>
+      `;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab")[["params","observation"].indexOf(tab)].classList.add("active");
+      document.getElementById("params-tab").classList.toggle("hidden", tab !== "params");
+      document.getElementById("observation-tab").classList.toggle("hidden", tab !== "observation");
+    }
+
+    async function triggerPipeline() {
+      if (!TOKEN) {
+        alert("Token missing. Please refresh and enter token.");
+        return;
+      }
+      const env = document.getElementById("env").value;
+      const script = document.getElementById("script").value;
+      const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/playwright.yml/dispatches`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TOKEN}`,
+          Accept: "application/vnd.github+json"
+        },
+        body: JSON.stringify({ ref: "main", inputs: { environment: env, script } })
+      });
+      if (res.status === 204) {
+        alert("Pipeline triggered!");
+        setTimeout(loadPipelines, 2000);
+      } else {
+        alert("Error triggering pipeline. Check token permissions.");
+      }
+    }
+
+    loadPipelines();
+  </script>
+</body>
+</html>
