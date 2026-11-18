@@ -67,11 +67,17 @@
 
   <script>
     const REPO = "Venkatesh9381/Playwright-practice-tests";
-    const TOKEN = "YOUR_GITHUB_PAT_HERE"; // Replace with your PAT
+    let TOKEN = localStorage.getItem("gh_token") || "";
+
+    if (!TOKEN) {
+      TOKEN = prompt("Enter your GitHub Personal Access Token:");
+      if (TOKEN) localStorage.setItem("gh_token", TOKEN);
+    }
 
     let pipelines = [];
 
     async function loadPipelines() {
+      if (!TOKEN) return;
       const res = await fetch(`https://api.github.com/repos/${REPO}/actions/runs?per_page=15`, {
         headers: { Authorization: `Bearer ${TOKEN}` }
       });
@@ -115,6 +121,10 @@
     }
 
     async function triggerPipeline() {
+      if (!TOKEN) {
+        alert("Token missing. Please refresh and enter token.");
+        return;
+      }
       const env = document.getElementById("env").value;
       const script = document.getElementById("script").value;
       const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/playwright.yml/dispatches`, {
@@ -129,7 +139,7 @@
         alert("Pipeline triggered!");
         setTimeout(loadPipelines, 2000);
       } else {
-        alert("Error triggering pipeline");
+        alert("Error triggering pipeline. Check token permissions.");
       }
     }
 
