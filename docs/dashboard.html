@@ -119,7 +119,7 @@
       document.getElementById("observation-tab").classList.toggle("hidden", tab !== "observation");
     }
 
-    async function triggerPipeline() {
+      async function triggerPipeline() {
       if (!TOKEN) {
         alert("Token missing. Please refresh and enter token.");
         return;
@@ -135,8 +135,11 @@
         body: JSON.stringify({ ref: "main", inputs: { environment: env, script } })
       });
       if (res.status === 204) {
-        alert("Pipeline triggered!");
-        setTimeout(loadPipelines, 2000);
+        alert("Pipeline triggered! List refresh avuthundi...");
+        // Auto refresh list multiple times
+        setTimeout(loadPipelines, 3000);
+        setTimeout(loadPipelines, 8000);
+        setTimeout(loadPipelines, 15000);
       } else {
         alert("Error triggering pipeline. Check token permissions.");
       }
