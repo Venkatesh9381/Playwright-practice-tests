@@ -84,9 +84,19 @@ jobs:
       if: always() && github.event_name != 'pull_request'
       uses: actions/checkout@v4
       with:
-        ref: pulse-reports
+        ref: main
         path: report-archive
         fetch-depth: 0
+    - name: Select or initialise report archive branch
+      if: always() && github.event_name != 'pull_request'
+      run: |
+        if git -C report-archive fetch origin pulse-reports; then
+          git -C report-archive checkout -B pulse-reports FETCH_HEAD
+        else
+          git -C report-archive checkout --orphan pulse-reports
+          git -C report-archive rm -rf . >/dev/null 2>&1 || true
+          git -C report-archive clean -fdx
+        fi
 
     - name: Prepare site
       if: always() && github.event_name != 'pull_request'
