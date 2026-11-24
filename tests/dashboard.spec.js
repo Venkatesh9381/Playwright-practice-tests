@@ -98,3 +98,29 @@ test('rejects invalid spec paths without dispatching', async ({ page }) => {
   await page.getByTestId('run-pipeline').click();
   await expect(page.locator('#toast')).toContainText('valid Playwright spec path');
 });
+
+
+test('exposes the latest Playwright report link', async ({ page }) => {
+  const report = page.getByRole('link', { name: 'Open Latest Report' });
+  await expect(report).toBeVisible();
+  await expect(report).toHaveAttribute('href', './report/index.html');
+  await expect(report).toHaveAttribute('target', '_blank');
+});
+
+test('disconnects GitHub and clears the connected dashboard state', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByTestId('token-input').fill('test-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.locator('#connection-status')).toContainText('qa-user');
+  await page.getByRole('button', { name: 'Disconnect' }).click();
+  await expect(page.locator('#connection-status')).toContainText('Not connected');
+  await expect(page.getByRole('button', { name: 'Connect GitHub' })).toBeVisible();
+  await expect(page.locator('#pipeline-list')).toContainText('Connect GitHub to load workflow runs');
+});
+
+test('cancel closes the GitHub connection dialog when not connected', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+});
