@@ -31,6 +31,7 @@ test('renders Pulse dashboard and execution controls', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Execution overview' })).toBeVisible();
   await expect(page.getByTestId('environment')).toHaveValue('qa');
   await expect(page.getByTestId('script')).toHaveValue('day-1.spec.js');
+  await expect(page.getByTestId('browser')).toHaveValue('all');
   await expect(page.getByTestId('run-pipeline')).toBeVisible();
 });
 
@@ -84,8 +85,9 @@ test('dispatches the selected environment and spec to the workflow', async ({ pa
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.getByTestId('environment').selectOption('staging');
   await page.getByTestId('script').fill('tests/login.spec.js');
+  await page.getByTestId('browser').selectOption('firefox');
   await page.getByTestId('run-pipeline').click();
-  await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { environment: 'staging', script: 'tests/login.spec.js' } });
+  await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { environment: 'staging', script: 'tests/login.spec.js', browser: 'firefox' } });
 });
 
 test('rejects invalid spec paths without dispatching', async ({ page }) => {
