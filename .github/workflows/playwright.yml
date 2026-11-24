@@ -16,10 +16,20 @@ on:
           - staging
           - prod
       script:
-        description: 'Script name (example: day-1.spec.js)'
+        description: 'Spec file or folder to run (example: day-1.spec.js)'
         required: true
         default: 'day-1.spec.js'
         type: string
+      browser:
+        description: 'Browser project to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - chromium
+          - firefox
+          - webkit
 
 jobs:
   test:
@@ -35,7 +45,19 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
-      run: npx playwright test --grep-invert "Dashboard" ${{ inputs.script || '' }}
+      env:
+        SCRIPT: ${{ inputs.script || '' }}
+        BROWSER: ${{ inputs.browser || 'all' }}
+      shell: bash
+      run: |
+        args=(--grep-invert 'Pulse dashboard')
+        if [[ -n "$SCRIPT" ]]; then
+          args+=("$SCRIPT")
+        fi
+        if [[ "$BROWSER" != "all" ]]; then
+          args+=(--project="$BROWSER")
+        fi
+        npx playwright test "${args[@]}"
     - name: Prepare site
       if: always()
       run: |
