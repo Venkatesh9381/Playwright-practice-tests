@@ -10,6 +10,7 @@ module.exports = defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
+    baseURL: process.env.TEST_BASE_URL || 'https://parabank.parasoft.com/parabank',
     trace: 'on-first-retry',
   },
   projects: [
