@@ -1,4 +1,13 @@
 name: Playwright Tests
+
+concurrency:
+  group: pulse-pages-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 on:
   push:
     branches: [ main ]
@@ -71,15 +80,26 @@ jobs:
           test-results/
         if-no-files-found: ignore
         retention-days: 14
+    - name: Restore report archive
+      if: always() && github.event_name != 'pull_request'
+      uses: actions/checkout@v4
+      with:
+        ref: pulse-reports
+        path: report-archive
+        fetch-depth: 0
+
     - name: Prepare site
       if: always() && github.event_name != 'pull_request'
       env:
         REPORT_RUN_ID: ${{ github.run_id }}
       run: |
-        mkdir -p site/report
-        cp -r playwright-report/. site/report/ 2>/dev/null || true
-        if [[ ! -f site/report/index.html ]]; then
-          cat > site/report/index.html <<'HTML'
+        mkdir -p site/reports/${REPORT_RUN_ID}
+        if [[ -d report-archive/reports ]]; then
+          cp -r report-archive/reports/. site/reports/
+        fi
+        cp -r playwright-report/. site/reports/${REPORT_RUN_ID}/ 2>/dev/null || true
+        if [[ ! -f site/reports/${REPORT_RUN_ID}/index.html ]]; then
+          cat > site/reports/${REPORT_RUN_ID}/index.html <<'HTML'
         <!doctype html><html lang="en"><meta charset="utf-8"><title>Playwright report unavailable</title>
         <body style="font:16px system-ui;max-width:720px;margin:10vh auto;padding:24px">
         <h1>Playwright report unavailable</h1>
@@ -88,12 +108,26 @@ jobs:
         HTML
         fi
         cp docs/dashboard.html site/dashboard.html
-        sed -i "s/__PULSE_REPORT_RUN_ID__/${REPORT_RUN_ID}/g" site/dashboard.html
         cat > site/report-status.txt <<EOF
         Workflow run: ${REPORT_RUN_ID}
         Commit: ${GITHUB_SHA}
         Conclusion: ${{ job.status }}
         EOF
+    - name: Save report in run archive
+      if: always() && github.event_name != 'pull_request'
+      env:
+        REPORT_RUN_ID: ${{ github.run_id }}
+      run: |
+        mkdir -p report-archive/reports/${REPORT_RUN_ID}
+        cp -r site/reports/${REPORT_RUN_ID}/. report-archive/reports/${REPORT_RUN_ID}/
+        git -C report-archive config user.name "github-actions[bot]"
+        git -C report-archive config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git -C report-archive add reports/${REPORT_RUN_ID}
+        if ! git -C report-archive diff --cached --quiet; then
+          git -C report-archive commit -m "Archive Playwright report ${REPORT_RUN_ID}"
+          git -C report-archive push origin pulse-reports
+        fi
+
     - name: Upload to GitHub Pages
       if: always() && github.event_name != 'pull_request'
       uses: actions/upload-pages-artifact@v3
