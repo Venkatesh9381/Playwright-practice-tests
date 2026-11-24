@@ -124,3 +124,18 @@ test('cancel closes the GitHub connection dialog when not connected', async ({ p
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
 });
+
+
+test('accepts a Playwright test folder path', async ({ page }) => {
+  let payload;
+  await page.route('https://api.github.com/repos/Venkatesh9381/Playwright-practice-tests/actions/workflows/playwright.yml/dispatches', async route => {
+    payload = route.request().postDataJSON();
+    await route.fulfill({ status: 204, body: '' });
+  });
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByTestId('token-input').fill('test-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await page.getByTestId('script').fill('tests');
+  await page.getByTestId('run-pipeline').click();
+  await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { environment: 'qa', script: 'tests', browser: 'all' } });
+});
