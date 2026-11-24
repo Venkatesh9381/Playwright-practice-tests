@@ -164,10 +164,10 @@ test('shows failure diagnostics and downloads run artifacts and failed job logs'
   await expect(page.locator('#tab-content')).toContainText('Login assertion');
   const artifactDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download Results' }).click();
-  await expect(await artifactDownload).toHaveProperty('suggestedFilename', 'playwright-results-102.zip');
+  expect((await artifactDownload).suggestedFilename()).toBe('playwright-results-102.zip');
   const logDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download job logs' }).click();
-  await expect(await logDownload).toHaveProperty('suggestedFilename', 'job-2-logs.zip');
+  expect((await logDownload).suggestedFilename()).toBe('job-2-logs.zip');
 });
 
 test('keeps loaded history when refreshing the latest page', async ({ page }) => {
