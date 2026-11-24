@@ -6,7 +6,7 @@ on:
       - main
       - feat/pulse-dashboard-refresh
   pull_request:
-    branches: [main]
+    branches: [main, feature/per-pipeline-reports]
   workflow_dispatch:
 
 permissions:
