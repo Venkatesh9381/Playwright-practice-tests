@@ -13,9 +13,16 @@ async function mockGitHub(page) {
   await page.route('https://api.github.com/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/user') return route.fulfill({ json: { login: 'qa-user' } });
-    if (url.pathname.endsWith('/actions/runs')) return route.fulfill({ json: { total_count: runs.length, workflow_runs: runs } });
+    if (url.pathname.endsWith('/actions/runs')) {
+      const pageNumber = Number(url.searchParams.get('page') || 1);
+      const older = { id: 104, run_number: 20, name: 'Playwright Tests', display_title: 'Older run', status: 'completed', conclusion: 'success', head_branch: 'main', event: 'push', created_at: '2026-11-23T10:00:00Z', run_started_at: '2026-11-23T10:00:02Z', updated_at: '2026-11-23T10:01:00Z', html_url: 'https://github.com/example/run/104', run_attempt: 1 };
+      return route.fulfill({ json: { total_count: pageNumber === 1 ? runs.length : 4, workflow_runs: pageNumber === 1 ? runs : [older] } });
+    }
+    if (url.pathname.endsWith('/actions/runs/102/artifacts')) return route.fulfill({ json: { artifacts: [{ id: 222, name: 'playwright-report-102', expired: false, created_at: '2026-11-24T11:01:00Z' }] } });
+    if (url.pathname.endsWith('/actions/artifacts/222/zip')) return route.fulfill({ status: 200, contentType: 'application/zip', body: 'fake-zip-content' });
+    if (url.pathname.endsWith('/actions/jobs/2/logs')) return route.fulfill({ status: 200, contentType: 'text/plain', body: 'failed test log' });
     if (url.pathname.endsWith('/actions/runs/101/jobs')) return route.fulfill({ json: { jobs: [{ id: 1, name: 'test', status: 'completed', conclusion: 'success', started_at: '2026-11-24T10:00:02Z', completed_at: '2026-11-24T10:01:00Z', steps: [{ name: 'Install dependencies', status: 'completed', conclusion: 'success' }, { name: 'Run tests', status: 'completed', conclusion: 'success' }] }] } });
-    if (url.pathname.endsWith('/actions/runs/102/jobs')) return route.fulfill({ json: { jobs: [{ id: 2, name: 'test', status: 'completed', conclusion: 'failure', steps: [] }] } });
+    if (url.pathname.endsWith('/actions/runs/102/jobs')) return route.fulfill({ json: { jobs: [{ id: 2, name: 'test', status: 'completed', conclusion: 'failure', started_at: '2026-11-24T11:00:02Z', completed_at: '2026-11-24T11:01:00Z', steps: [{ name: 'Login assertion', status: 'completed', conclusion: 'failure' }] }] } });
     if (url.pathname.endsWith('/actions/runs/103/jobs')) return route.fulfill({ json: { jobs: [{ id: 3, name: 'test', status: 'in_progress', steps: [{ name: 'Run tests', status: 'in_progress' }] }] } });
     if (url.pathname.endsWith('/dispatches') && route.request().method() === 'POST') return route.fulfill({ status: 204, body: '' });
     return route.fulfill({ status: 404, json: { message: 'Not found in test mock' } });
@@ -144,4 +151,51 @@ test('accepts a Playwright test folder path', async ({ page }) => {
   await page.getByTestId('script').fill('tests');
   await page.getByTestId('run-pipeline').click();
   await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { environment: 'qa', script: 'tests', browser: 'all' } });
+});
+
+
+test('shows failure diagnostics and downloads run artifacts and failed job logs', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByTestId('token-input').fill('test-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await page.locator('.run-row').filter({ hasText: 'Login regression' }).click();
+  await page.getByRole('button', { name: 'Observation' }).click();
+  await expect(page.locator('#tab-content')).toContainText('FAILURE DIAGNOSTICS');
+  await expect(page.locator('#tab-content')).toContainText('Login assertion');
+  const artifactDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download Results' }).click();
+  expect((await artifactDownload).suggestedFilename()).toBe('playwright-results-102.zip');
+  const logDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download job logs' }).click();
+  expect((await logDownload).suggestedFilename()).toBe('job-2-logs.zip');
+});
+
+test('keeps loaded history when refreshing the latest page', async ({ page }) => {
+  const firstPage = Array.from({ length: 50 }, (_, index) => ({
+    ...runs[0], id: 1000 + index, run_number: 1000 + index, display_title: 'History run ' + index
+  }));
+  const older = { ...runs[0], id: 2000, run_number: 2000, display_title: 'Older history run' };
+  await page.route('https://api.github.com/repos/Venkatesh9381/Playwright-practice-tests/actions/runs?per_page=50&page=1', route =>
+    route.fulfill({ json: { total_count: 51, workflow_runs: firstPage } }));
+  await page.route('https://api.github.com/repos/Venkatesh9381/Playwright-practice-tests/actions/runs?per_page=50&page=2', route =>
+    route.fulfill({ json: { total_count: 51, workflow_runs: [older] } }));
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByTestId('token-input').fill('test-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.locator('.run-row')).toHaveCount(50);
+  await page.getByRole('button', { name: 'Load older' }).click();
+  await expect(page.locator('.run-row')).toHaveCount(51);
+  await page.getByTestId('refresh').click();
+  await expect(page.locator('.run-row')).toHaveCount(51);
+  await expect(page.locator('#pagination-note')).toContainText('Page 2');
+});
+
+test('shows a clear error when GitHub authentication fails', async ({ page }) => {
+  await page.route('https://api.github.com/user', route =>
+    route.fulfill({ status: 401, json: { message: 'Bad credentials' } }));
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByTestId('token-input').fill('invalid-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.locator('#toast')).toContainText('Bad credentials');
+  await expect(page.locator('#connection-status')).toContainText('Not connected');
 });
