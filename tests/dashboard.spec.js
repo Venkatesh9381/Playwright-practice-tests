@@ -35,6 +35,7 @@ test('renders Pulse dashboard and execution controls', async ({ page }) => {
 });
 
 test('connects to GitHub and loads run statistics', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await page.getByTestId('token-input').fill('test-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(page.locator('#connection-status')).toContainText('qa-user');
@@ -45,6 +46,7 @@ test('connects to GitHub and loads run statistics', async ({ page }) => {
 });
 
 test('status cards filter the execution history', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await page.getByTestId('token-input').fill('test-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.getByTestId('filter-success').click();
@@ -59,6 +61,7 @@ test('status cards filter the execution history', async ({ page }) => {
 });
 
 test('search filters runs and selection shows real job steps', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await page.getByTestId('token-input').fill('test-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.getByTestId('search').fill('checkout');
@@ -76,6 +79,7 @@ test('dispatches the selected environment and spec to the workflow', async ({ pa
     payload = route.request().postDataJSON();
     await route.fulfill({ status: 204, body: '' });
   });
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await page.getByTestId('token-input').fill('test-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.getByTestId('environment').selectOption('staging');
@@ -85,6 +89,7 @@ test('dispatches the selected environment and spec to the workflow', async ({ pa
 });
 
 test('rejects invalid spec paths without dispatching', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await page.getByTestId('token-input').fill('test-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.getByTestId('script').fill('not-a-spec.txt');
