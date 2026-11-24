@@ -35,6 +35,8 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment || 'qa' }}
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
@@ -48,6 +50,7 @@ jobs:
       env:
         SCRIPT: ${{ inputs.script || '' }}
         BROWSER: ${{ inputs.browser || 'all' }}
+        TEST_BASE_URL: ${{ vars.TEST_BASE_URL }}
       shell: bash
       run: |
         args=(--grep-invert 'Pulse dashboard')
@@ -58,20 +61,47 @@ jobs:
           args+=(--project="$BROWSER")
         fi
         npx playwright test "${args[@]}"
+    - name: Upload Playwright report artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report-${{ github.run_id }}
+        path: |
+          playwright-report/
+          test-results/
+        if-no-files-found: ignore
+        retention-days: 14
     - name: Prepare site
-      if: always()
+      if: always() && github.event_name != 'pull_request'
+      env:
+        REPORT_RUN_ID: ${{ github.run_id }}
       run: |
-        mkdir -p site
-        cp -r playwright-report/* site/ || true
-        cp docs/dashboard.html site/dashboard.html || true
+        mkdir -p site/report
+        cp -r playwright-report/. site/report/ 2>/dev/null || true
+        if [[ ! -f site/report/index.html ]]; then
+          cat > site/report/index.html <<'HTML'
+        <!doctype html><html lang="en"><meta charset="utf-8"><title>Playwright report unavailable</title>
+        <body style="font:16px system-ui;max-width:720px;margin:10vh auto;padding:24px">
+        <h1>Playwright report unavailable</h1>
+        <p>This workflow did not produce an HTML report. Check the workflow run and downloadable artifacts for details.</p>
+        </body></html>
+        HTML
+        fi
+        cp docs/dashboard.html site/dashboard.html
+        sed -i "s/__PULSE_REPORT_RUN_ID__/${REPORT_RUN_ID}/g" site/dashboard.html
+        cat > site/report-status.txt <<EOF
+        Workflow run: ${REPORT_RUN_ID}
+        Commit: ${GITHUB_SHA}
+        Conclusion: ${{ job.status }}
+        EOF
     - name: Upload to GitHub Pages
-      if: always()
+      if: always() && github.event_name != 'pull_request'
       uses: actions/upload-pages-artifact@v3
       with:
         path: site
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: always() && github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     permissions:
