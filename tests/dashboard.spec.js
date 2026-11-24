@@ -100,10 +100,16 @@ test('rejects invalid spec paths without dispatching', async ({ page }) => {
 });
 
 
-test('exposes the latest Playwright report link', async ({ page }) => {
-  const report = page.getByRole('link', { name: 'Open Latest Report' });
+test('shows a report link for the selected pipeline inside Observation', async ({ page }) => {
+  await expect(page.getByRole('link', { name: 'Open Latest Report' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByTestId('token-input').fill('test-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await page.locator('.run-row').filter({ hasText: 'Dashboard smoke' }).click();
+  await page.getByRole('button', { name: 'Observation' }).click();
+  const report = page.getByRole('link', { name: 'Open Report' });
   await expect(report).toBeVisible();
-  await expect(report).toHaveAttribute('href', './report/index.html');
+  await expect(report).toHaveAttribute('href', './reports/101/index.html');
   await expect(report).toHaveAttribute('target', '_blank');
 });
 
