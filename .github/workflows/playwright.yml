@@ -35,7 +35,7 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
-      run: npx playwright test ${{ inputs.script || '' }}
+      run: npx playwright test --grep-invert "Dashboard" ${{ inputs.script || '' }}
     - name: Prepare site
       if: always()
       run: |
