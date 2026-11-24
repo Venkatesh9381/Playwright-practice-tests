@@ -78,6 +78,15 @@ jobs:
       run: |
         mkdir -p site/report
         cp -r playwright-report/. site/report/ 2>/dev/null || true
+        if [[ ! -f site/report/index.html ]]; then
+          cat > site/report/index.html <<'HTML'
+        <!doctype html><html lang="en"><meta charset="utf-8"><title>Playwright report unavailable</title>
+        <body style="font:16px system-ui;max-width:720px;margin:10vh auto;padding:24px">
+        <h1>Playwright report unavailable</h1>
+        <p>This workflow did not produce an HTML report. Check the workflow run and downloadable artifacts for details.</p>
+        </body></html>
+        HTML
+        fi
         cp docs/dashboard.html site/dashboard.html
         sed -i "s/__PULSE_REPORT_RUN_ID__/${REPORT_RUN_ID}/g" site/dashboard.html
         cat > site/report-status.txt <<EOF
