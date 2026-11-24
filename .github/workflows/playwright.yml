@@ -58,20 +58,38 @@ jobs:
           args+=(--project="$BROWSER")
         fi
         npx playwright test "${args[@]}"
+    - name: Upload Playwright report artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report-${{ github.run_id }}
+        path: |
+          playwright-report/
+          test-results/
+        if-no-files-found: ignore
+        retention-days: 14
     - name: Prepare site
-      if: always()
+      if: always() && github.event_name != 'pull_request'
+      env:
+        REPORT_RUN_ID: ${{ github.run_id }}
       run: |
-        mkdir -p site
-        cp -r playwright-report/* site/ || true
-        cp docs/dashboard.html site/dashboard.html || true
+        mkdir -p site/report
+        cp -r playwright-report/. site/report/ 2>/dev/null || true
+        cp docs/dashboard.html site/dashboard.html
+        sed -i "s/__PULSE_REPORT_RUN_ID__/${REPORT_RUN_ID}/g" site/dashboard.html
+        cat > site/report-status.txt <<EOF
+        Workflow run: ${REPORT_RUN_ID}
+        Commit: ${GITHUB_SHA}
+        Conclusion: ${{ job.status }}
+        EOF
     - name: Upload to GitHub Pages
-      if: always()
+      if: always() && github.event_name != 'pull_request'
       uses: actions/upload-pages-artifact@v3
       with:
         path: site
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: always() && github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     permissions:
