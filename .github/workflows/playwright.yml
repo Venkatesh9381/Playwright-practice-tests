@@ -35,6 +35,8 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment || 'qa' }}
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
@@ -48,6 +50,7 @@ jobs:
       env:
         SCRIPT: ${{ inputs.script || '' }}
         BROWSER: ${{ inputs.browser || 'all' }}
+        TEST_BASE_URL: ${{ vars.TEST_BASE_URL }}
       shell: bash
       run: |
         args=(--grep-invert 'Pulse dashboard')
