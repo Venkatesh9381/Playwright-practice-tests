@@ -121,7 +121,7 @@ test('disconnects GitHub and clears the connected dashboard state', async ({ pag
 test('cancel closes the GitHub connection dialog when not connected', async ({ page }) => {
   await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
 });
 
