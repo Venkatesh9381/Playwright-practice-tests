@@ -209,7 +209,7 @@ test('shows visible progress and completion feedback when manually refreshing ru
   let releaseRefresh;
   let refreshRequestStarted = false;
   const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
-  await page.route(/\\/actions\\/runs\\?per_page=50&page=1$/, async route => {
+  await page.route(/\/actions\/runs\?per_page=50&page=1$/, async route => {
     refreshRequestStarted = true;
     await refreshGate;
     await route.fulfill({ json: { total_count: runs.length, workflow_runs: runs } });
