@@ -81,7 +81,7 @@ test('search filters runs and selection shows real job steps', async ({ page }) 
   await expect(page.locator('#tab-content')).toContainText('Run tests');
 });
 
-test('dispatches the selected environment and spec to the workflow', async ({ page }) => {
+test('dispatches the selected spec and browser while ignoring the future environment placeholder', async ({ page }) => {
   let payload;
   await page.route('https://api.github.com/repos/Venkatesh9381/Playwright-practice-tests/actions/workflows/playwright.yml/dispatches', async route => {
     payload = route.request().postDataJSON();
@@ -90,11 +90,11 @@ test('dispatches the selected environment and spec to the workflow', async ({ pa
   await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await page.getByTestId('token-input').fill('test-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await page.getByTestId('environment').selectOption('staging');
+  await page.getByTestId('environment').selectOption('prod');
   await page.getByTestId('script').fill('tests/login.spec.js');
   await page.getByTestId('browser').selectOption('firefox');
   await page.getByTestId('run-pipeline').click();
-  await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { environment: 'staging', script: 'tests/login.spec.js', browser: 'firefox' } });
+  await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { script: 'tests/login.spec.js', browser: 'firefox' } });
 });
 
 test('rejects invalid spec paths without dispatching', async ({ page }) => {
@@ -150,7 +150,7 @@ test('accepts a Playwright test folder path', async ({ page }) => {
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.getByTestId('script').fill('tests');
   await page.getByTestId('run-pipeline').click();
-  await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { environment: 'qa', script: 'tests', browser: 'all' } });
+  await expect.poll(() => payload).toEqual({ ref: 'main', inputs: { script: 'tests', browser: 'all' } });
 });
 
 
