@@ -15,15 +15,6 @@ on:
     branches: [ main, feature/per-pipeline-reports ]
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Environment'
-        required: true
-        default: 'qa'
-        type: choice
-        options:
-          - qa
-          - staging
-          - prod
       script:
         description: 'Spec file or folder to run (example: day-1.spec.js)'
         required: true
@@ -44,35 +35,11 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ inputs.environment || 'qa' }}
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
         node-version: 20
-    - name: Validate manual run inputs
-      if: github.event_name == 'workflow_dispatch'
-      env:
-        SCRIPT: ${{ inputs.script }}
-        BROWSER: ${{ inputs.browser }}
-        TEST_BASE_URL: ${{ vars.TEST_BASE_URL }}
-      shell: bash
-      run: |
-        if [[ -z "$TEST_BASE_URL" || ! "$TEST_BASE_URL" =~ ^https?:// ]]; then
-          echo "::error::Configure TEST_BASE_URL in the selected GitHub Environment before dispatching a run."
-          exit 1
-        fi
-        if [[ -z "$SCRIPT" || "$SCRIPT" == *".."* || "$SCRIPT" == /* || "$SCRIPT" == */ ]]; then
-          echo "::error::SCRIPT must be a repository-relative Playwright spec file or folder."
-          exit 1
-        fi
-        if [[ "$SCRIPT" == *.* ]]; then
-          [[ "$SCRIPT" =~ \.spec\.js$ && -f "$SCRIPT" ]] || { echo "::error::SCRIPT must point to an existing .spec.js file."; exit 1; }
-        else
-          [[ -d "$SCRIPT" ]] || { echo "::error::SCRIPT folder does not exist."; exit 1; }
-        fi
-        case "$BROWSER" in all|chromium|firefox|webkit) ;; *) echo "::error::Unsupported browser project."; exit 1 ;; esac
     - name: Install dependencies
       run: npm ci
     - name: Install Playwright Browsers
@@ -81,7 +48,6 @@ jobs:
       env:
         SCRIPT: ${{ inputs.script || '' }}
         BROWSER: ${{ inputs.browser || 'all' }}
-        TEST_BASE_URL: ${{ vars.TEST_BASE_URL }}
       shell: bash
       run: |
         args=(--grep-invert 'Pulse dashboard')
