@@ -199,3 +199,30 @@ test('shows a clear error when GitHub authentication fails', async ({ page }) =>
   await expect(page.locator('#toast')).toContainText('Bad credentials');
   await expect(page.locator('#connection-status')).toContainText('Not connected');
 });
+
+
+test('shows visible progress and completion feedback when manually refreshing runs', async ({ page }) => {
+  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByTestId('token-input').fill('test-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+
+  let releaseRefresh;
+  let refreshRequestStarted = false;
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve; });
+  await page.route(/\/actions\/runs\?per_page=50&page=1$/, async route => {
+    refreshRequestStarted = true;
+    await refreshGate;
+    await route.fulfill({ json: { total_count: runs.length, workflow_runs: runs } });
+  });
+
+  await page.getByTestId('refresh').click();
+  await expect.poll(() => refreshRequestStarted).toBe(true);
+  await expect(page.getByTestId('refresh')).toBeDisabled();
+  await expect(page.locator('#refresh-label')).toHaveText('Refreshing…');
+  await expect(page.locator('#refresh-status')).toContainText('Checking GitHub for updates');
+
+  releaseRefresh();
+  await expect(page.getByTestId('refresh')).toBeEnabled();
+  await expect(page.locator('#refresh-label')).toHaveText('Refresh');
+  await expect(page.locator('#refresh-status')).toContainText('Last updated');
+});
